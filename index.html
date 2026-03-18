@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a84ff">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LAPP EV 3.0</title>
@@ -1017,7 +1019,7 @@
 
 <!-- HEADER -->
 <header class="app-header">
-    <h1>🌿 LAPP EV 3.0<span> © 2026 - Leroy Aurélien - Version 3.5</span></h1>
+    <h1>🌿 LAPP EV 3.0<span> © 2026 - Leroy Aurélien - Version 3.6</span></h1>
     
     <nav class="nav-buttons">
         <button class="nav-btn active" onclick="switchMode('creation')">📐 Création</button>
@@ -1801,6 +1803,39 @@ canvas.addEventListener('wheel', (e) => {
     v.scale = newScale;
     render();
 }, { passive: false });
+
+canvas.addEventListener('click', (e) => {
+    if (isPanning) return;
+    if (!state.selectedZone) return;
+    const imgObj = getImageObj();
+    if (!imgObj) return;
+    const rect = canvas.getBoundingClientRect();
+    const pt = screenToImage(e.clientX - rect.left, e.clientY - rect.top);
+    if (!pt) return;
+
+    const zt = ZONE_TYPES[state.selectedZone];
+
+    if (zt.fixed) {
+        saveState();
+        imgObj.zones.push({ type: state.selectedZone, points: [pt], closed: true });
+        render();
+        toast(`${zt.icon} ${zt.label} placé`);
+        return;
+    }
+
+    saveState();
+    state.currentPoints.push(pt);
+    state.drawingActive = true;
+    updatePointsInfo();
+    render();
+});
+
+canvas.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    if (state.drawingActive && state.currentPoints.length >= 3) {
+        closeCurrentZone();
+    }
+});
 
 // ============================================================
 // TOUCH EVENTS (pinch-zoom, pan, tap-to-draw, double-tap)
@@ -2850,15 +2885,21 @@ function renderLectureCanvas() {
             }
         });
 
-        window.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', (e) => {
             if (!lecDragging) return;
+            // Ne pas interférer si on n'est pas en mode lecture
+            const lectureMode = document.getElementById('lecture-mode');
+            if (!lectureMode || !lectureMode.classList.contains('active')) {
+                lecDragging = false;
+                return;
+            }
             lecPan.x += e.clientX - lecLastPos.x;
             lecPan.y += e.clientY - lecLastPos.y;
             lecLastPos = { x: e.clientX, y: e.clientY };
             clampLecPan();
             applyLecTransform();
         });
-        window.addEventListener('mouseup', () => { lecDragging = false; });
+        document.addEventListener('mouseup', () => { lecDragging = false; });
 
         // Touch pinch + pan
         wrap.addEventListener('touchstart', (e) => {
@@ -3065,6 +3106,42 @@ function togglePanel() {
     updateUI();
     renderLectureMode();
 })();
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('Service Worker enregistré (scope):', reg.scope);
+
+      // détecter nouvelle version
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        console.log('Nouvelle version du SW trouvée');
+        newSW.addEventListener('statechange', () => {
+          console.log('SW state:', newSW.state);
+          if (newSW.state === 'installed') {
+            // si clients sont contrôlés, c'est une mise à jour ; sinon premier install
+            if (navigator.serviceWorker.controller) {
+              console.log('Nouvelle version installée — pense à prévenir l’utilisateur (refresh pour appliquer).');
+            } else {
+              console.log('Service Worker installé pour la première fois.');
+            }
+          }
+        });
+      });
+
+      // optionnel : attendre que le SW soit actif
+      await navigator.serviceWorker.ready;
+      console.log('Service Worker actif et prêt');
+    } catch (err) {
+      console.error('Erreur en enregistrant le Service Worker:', err);
+    }
+  });
+}
+
 </script>
 
 </body>
