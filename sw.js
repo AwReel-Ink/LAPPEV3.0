@@ -1,4 +1,4 @@
-const CACHE = 'lappev-v4.1';
+const CACHE = 'lappev-v4.2';
 const ASSETS = [
   './',
   './index.html',
