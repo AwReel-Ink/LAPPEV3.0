@@ -1019,7 +1019,7 @@
 
 <!-- HEADER -->
 <header class="app-header">
-    <h1>🌿 LAPP EV 3.0<span> © 2026 - Leroy Aurélien - Version 3.8</span></h1>
+    <h1>🌿 LAPP EV 3.0<span> © 2026 - Leroy Aurélien - Version 3.9</span></h1>
     
     <nav class="nav-buttons">
         <button class="nav-btn active" onclick="switchMode('creation')">📐 Création</button>
@@ -2293,8 +2293,18 @@ function saveJSON() {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const dateStr = `${mm}-${yyyy}`;
+
+    const clean = (s) => (s || '').replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '-').trim();
+    const nameStr = clean(state.client.name).toUpperCase();
+    const cityStr = clean(state.client.city).replace(/-/g, '');
+
+    a.download = `${nameStr}_${cityStr}_${dateStr}.json`;
     a.href = url;
-    a.download = `LAPP_${state.client.name.replace(/[<>:"/\\|?*]/g, '_').trim()}_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast('💾 Fichier sauvegardé');
